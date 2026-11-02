@@ -9,7 +9,7 @@ import { getFileExtension } from "./limits";
 export const UPLOAD_FILE_CATEGORIES = {
   model: {
     label: "Model",
-    extensions: ["stl", "obj", "ply"],
+    extensions: ["stl", "obj", "ply", "sldprt"],
   },
   slicer: {
     label: "Project",

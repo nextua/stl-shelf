@@ -1,6 +1,7 @@
 import { relations } from "drizzle-orm";
 import {
   index,
+  foreignKey,
   integer,
   jsonb,
   pgTable,
@@ -10,6 +11,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { user as authUser, organization } from "./auth";
+import { libraryFolders } from "./folders";
 
 export const models = pgTable(
   "models",
@@ -21,6 +23,7 @@ export const models = pgTable(
     ownerId: text("owner_id")
       .notNull()
       .references(() => authUser.id), // Keep for audit trail
+    folderId: uuid("folder_id"),
     slug: text("slug").notNull(),
     name: text("name").notNull(),
     description: text("description"),
@@ -36,6 +39,12 @@ export const models = pgTable(
     index("models_updated_at_idx").on(table.updatedAt),
     index("models_owner_idx").on(table.ownerId),
     index("models_org_idx").on(table.organizationId),
+    index("models_folder_idx").on(table.organizationId, table.folderId),
+    foreignKey({
+      name: "models_folder_org_fk",
+      columns: [table.folderId, table.organizationId],
+      foreignColumns: [libraryFolders.id, libraryFolders.organizationId],
+    }),
     index("models_deleted_at_idx").on(table.deletedAt),
   ],
 );

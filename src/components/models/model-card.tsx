@@ -1,3 +1,5 @@
+import { MoveModelDialog } from "@/components/folders/move-model-dialog";
+import { FolderInput } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronDown, Download, Eye, HardDrive, MoreVertical, Trash2 } from "lucide-react";
 import { memo, useState } from "react";
@@ -31,6 +33,9 @@ type ModelCardProps = {
   searchQuery?: string;
   model: {
     id: string;
+    folderId?: string | null;
+    canDelete?: boolean;
+    canMove?: boolean;
     slug: string;
     name: string;
     description: string | null;
@@ -65,6 +70,7 @@ const DESKTOP_VISIBLE_TAGS = 3;
 const MOBILE_VISIBLE_TAGS = 1;
 
 const ModelCard = memo(({ model, searchQuery }: ModelCardProps) => {
+  const [showMoveDialog, setShowMoveDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const deleteModel = useDeleteModel();
@@ -73,7 +79,10 @@ const ModelCard = memo(({ model, searchQuery }: ModelCardProps) => {
   const handleTagClick = (tag: string, e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    navigate({ to: "/library", search: buildLibraryTagSearch(tag, searchQuery) });
+    navigate({
+      to: "/library",
+      search: { ...buildLibraryTagSearch(tag, searchQuery), folder: model.folderId ?? undefined },
+    });
   };
 
   const formatFileSize = (bytes: number) => {
@@ -173,17 +182,31 @@ const ModelCard = memo(({ model, searchQuery }: ModelCardProps) => {
                 <Download className="mr-2 h-4 w-4" />
                 Download
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setShowDeleteDialog(true);
-                }}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
+              {model.canMove && (
+                <DropdownMenuItem
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setShowMoveDialog(true);
+                    setDropdownOpen(false);
+                  }}
+                >
+                  <FolderInput className="mr-2 h-4 w-4" />
+                  Перемістити до теки
+                </DropdownMenuItem>
+              )}
+              {model.canDelete && <DropdownMenuSeparator />}
+              {model.canDelete && (
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setShowDeleteDialog(true);
+                  }}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -374,6 +397,14 @@ const ModelCard = memo(({ model, searchQuery }: ModelCardProps) => {
         )}
       </CardContent>
 
+      {showMoveDialog && (
+        <MoveModelDialog
+          modelId={model.id}
+          currentFolderId={model.folderId ?? null}
+          open={showMoveDialog}
+          onOpenChange={setShowMoveDialog}
+        />
+      )}
       {/* Delete Confirmation Dialog */}
       <AlertDialog onOpenChange={setShowDeleteDialog} open={showDeleteDialog}>
         <AlertDialogContent>

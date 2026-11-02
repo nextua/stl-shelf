@@ -22,7 +22,7 @@ export type CompletenessCategory = "model" | "slicer" | "image";
  * Extension to category mapping for completeness tracking
  */
 const COMPLETENESS_EXTENSIONS = {
-  model: ["stl", "obj", "ply"] as const,
+  model: ["stl", "obj", "ply", "sldprt"] as const,
   slicer: ["3mf"] as const,
   image: ["jpg", "jpeg", "png", "webp", "gif"] as const,
 } as const;
@@ -236,7 +236,7 @@ export const COMPLETENESS_CATEGORY_INFO: Record<
   model: {
     label: "Model Files",
     singularLabel: "Model",
-    description: "3D printable mesh files",
+    description: "3D mesh files and original CAD parts",
     addLabel: "Add Model",
     extensions: COMPLETENESS_EXTENSIONS.model,
   },

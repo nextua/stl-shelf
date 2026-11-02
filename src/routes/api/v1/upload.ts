@@ -1,3 +1,4 @@
+import { authorizeActorResource } from "@/server/services/folder-access.service";
 import { createFileRoute } from "@tanstack/react-router";
 import { db, models, modelVersions, modelFiles } from "@/lib/db";
 import { eq, and, isNull, sql } from "drizzle-orm";
@@ -54,6 +55,14 @@ export const Route = createFileRoute("/api/v1/upload")({
           if (!modelId) {
             return Response.json({ error: "Missing required field: modelId" }, { status: 400 });
           }
+
+          const folderDenial = await authorizeActorResource(
+            validation.actor,
+            "model",
+            modelId,
+            "editor",
+          );
+          if (folderDenial) return folderDenial;
 
           // Validate file extension first
           const extension = file.name.split(".").pop()?.toLowerCase() || "";

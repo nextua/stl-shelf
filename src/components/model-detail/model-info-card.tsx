@@ -66,12 +66,22 @@ export const ModelInfoCard = ({ modelId, versionId }: ModelInfoCardProps) => {
               <ImageIcon className="h-4 w-4 text-muted-foreground" />
               <span className="font-medium text-sm">Preview</span>
             </div>
-            <PreviewImageManager
-              modelId={modelId}
-              modelName={model.name}
-              thumbnailUrl={activeVersion.thumbnailUrl ?? null}
-              versionId={activeVersion.id}
-            />
+            {model.permissions.canEdit ? (
+              <PreviewImageManager
+                modelId={modelId}
+                modelName={model.name}
+                thumbnailUrl={activeVersion.thumbnailUrl ?? null}
+                versionId={activeVersion.id}
+              />
+            ) : activeVersion.thumbnailUrl ? (
+              <img
+                src={activeVersion.thumbnailUrl}
+                alt={model.name}
+                className="max-h-56 w-full rounded-md object-contain"
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">Немає зображення</p>
+            )}
           </div>
         )}
 
@@ -117,7 +127,17 @@ export const ModelInfoCard = ({ modelId, versionId }: ModelInfoCardProps) => {
         )}
 
         {/* Tags */}
-        <TagEditor currentTags={tags ?? []} modelId={modelId} />
+        {model.permissions.canEdit ? (
+          <TagEditor currentTags={tags ?? []} modelId={modelId} />
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {tags?.map((tag) => (
+              <Badge key={tag.id} variant="secondary">
+                {tag.name}
+              </Badge>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

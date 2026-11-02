@@ -1,3 +1,4 @@
+import { authorizeActorResource } from "@/server/services/folder-access.service";
 import { createFileRoute } from "@tanstack/react-router";
 import { db, models, modelVersions, modelFiles } from "@/lib/db";
 import { eq, and, isNull } from "drizzle-orm";
@@ -14,6 +15,8 @@ export const Route = createFileRoute("/api/v1/models/$modelId")({
 
         try {
           const { modelId } = params;
+          const folderDenial = await authorizeActorResource(validation.actor, "model", modelId);
+          if (folderDenial) return folderDenial;
 
           // Get model with current version details
           const [model] = await db

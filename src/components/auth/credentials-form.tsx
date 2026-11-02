@@ -20,6 +20,7 @@ type CredentialsFormProps = {
 };
 
 export function CredentialsForm({ auth, invitationId }: CredentialsFormProps) {
+  const captchaEnabled = Boolean(import.meta.env.VITE_TURNSTILE_SITE_KEY);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showPassword, setShowPassword] = useState(false);
@@ -84,7 +85,7 @@ export function CredentialsForm({ auth, invitationId }: CredentialsFormProps) {
       onSubmit: z.object({
         email: z.email("Enter a valid email address").max(255, "Email is too long"),
         password: z.string().min(1, "Password is required"),
-        captcha: z.string().min(1, "Please complete the captcha"),
+        captcha: z.string().min(captchaEnabled ? 1 : 0, "Please complete the captcha"),
       }),
     },
   });
@@ -166,16 +167,18 @@ export function CredentialsForm({ auth, invitationId }: CredentialsFormProps) {
         )}
       </form.Field>
 
-      <div className="w-full">
-        <p className="mb-2 font-medium text-sm">Let us know you are human</p>
-        <Turnstile
-          className="mb-2 w-full"
-          onError={() => form.setFieldValue("captcha", "")}
-          onExpire={() => form.setFieldValue("captcha", "")}
-          onVerify={(token) => form.setFieldValue("captcha", token)}
-          siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY as string}
-        />
-      </div>
+      {captchaEnabled && (
+        <div className="w-full">
+          <p className="mb-2 font-medium text-sm">Let us know you are human</p>
+          <Turnstile
+            className="mb-2 w-full"
+            onError={() => form.setFieldValue("captcha", "")}
+            onExpire={() => form.setFieldValue("captcha", "")}
+            onVerify={(token) => form.setFieldValue("captcha", token)}
+            siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY as string}
+          />
+        </div>
+      )}
 
       <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
         {([canSubmit, isSubmitting]) => (

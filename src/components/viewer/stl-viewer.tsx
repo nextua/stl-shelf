@@ -68,7 +68,8 @@ type STLViewerProps = {
   filename: string;
   className?: string;
   url: string; // Presigned URL from server
-  posterUrl?: string | null; // Thumbnail shown while the mesh downloads/parses
+  posterUrl?: string | null;
+  isCadPreview?: boolean; // Thumbnail shown while the mesh downloads/parses
   onSnapshot?: (blob: Blob) => void;
 };
 
@@ -346,7 +347,7 @@ function LoadingFallback() {
   );
 }
 
-function ErrorFallback({ error }: { error: Error }) {
+function ErrorFallback({ error, isCadPreview }: { error: Error; isCadPreview?: boolean }) {
   const isAllocationError = /array buffer allocation failed/i.test(error.message);
 
   // Log full error for debugging
@@ -358,7 +359,9 @@ function ErrorFallback({ error }: { error: Error }) {
         <div className="text-muted-foreground text-sm">
           {isAllocationError
             ? "This file is too large for in-browser preview. Download the file to inspect it locally."
-            : "Please try refreshing the page or select a different file."}
+            : isCadPreview
+              ? "This part may not contain supported saved display geometry. Attach an STL or OBJ exported from SolidWorks, or try again shortly."
+              : "Please try refreshing the page or select a different file."}
         </div>
       </div>
     </div>
@@ -485,7 +488,10 @@ export function STLViewerWithSuspense(props: STLViewerProps) {
   return (
     <ViewerErrorBoundary
       renderFallback={(error) => (
-        <ErrorFallback error={error ?? new Error("The 3D viewer encountered an error")} />
+        <ErrorFallback
+          error={error ?? new Error("The 3D viewer encountered an error")}
+          isCadPreview={props.isCadPreview}
+        />
       )}
     >
       <Suspense fallback={<LoadingFallback />}>

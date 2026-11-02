@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import { modelFiles, models, modelTags, modelVersions, tags } from "@/lib/db/schema/models";
@@ -7,6 +7,8 @@ import { isPhotoThumbnail } from "@/server/services/models/thumbnail.service";
 
 export type ListModelsInput = {
   organizationId: string;
+  folderId?: string | null;
+  visibility?: SQL;
   cursor?: ModelsListCursor;
   limit?: number;
   search?: string;
@@ -26,6 +28,7 @@ export type ModelOwner = {
 
 export type ModelListItem = {
   id: string;
+  folderId: string | null;
   slug: string;
   name: string;
   description: string | null;
@@ -57,6 +60,8 @@ export type ListModelsOutput = {
  */
 export async function listModels({
   organizationId,
+  folderId,
+  visibility,
   cursor,
   limit = 12,
   search,
@@ -65,6 +70,10 @@ export async function listModels({
   const safeLimit = Math.min(100, Math.max(1, limit));
 
   const conditions = [eq(models.organizationId, organizationId), isNull(models.deletedAt)];
+
+  if (visibility) conditions.push(visibility);
+  if (folderId !== undefined)
+    conditions.push(folderId === null ? isNull(models.folderId) : eq(models.folderId, folderId));
 
   if (cursor) {
     if (!Number.isNaN(Date.parse(cursor.updatedAt))) {
@@ -100,6 +109,7 @@ export async function listModels({
   const modelsWithData = await db
     .select({
       id: models.id,
+      folderId: models.folderId,
       slug: models.slug,
       name: models.name,
       description: models.description,
@@ -147,7 +157,7 @@ export async function listModels({
           INNER JOIN ${modelFiles} mf ON mf.version_id = mv.id
           WHERE mv.model_id = models.id
           AND mv.version = models.current_version
-          AND mf.extension IN ('stl', 'obj', 'ply')
+          AND mf.extension IN ('stl', 'obj', 'ply', 'sldprt')
         )
       )`,
       hasSlicerFile: sql<boolean>`(
@@ -204,6 +214,7 @@ export async function listModels({
 
     return {
       id: row.id,
+      folderId: row.folderId,
       slug: row.slug,
       name: row.name,
       description: row.description,

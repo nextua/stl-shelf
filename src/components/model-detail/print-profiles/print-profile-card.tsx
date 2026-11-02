@@ -30,7 +30,7 @@ type PrintProfileCardProps = {
     };
   };
   onDownload: () => void;
-  onDelete: () => void;
+  onDelete?: () => void;
   isDeleting?: boolean;
 };
 
@@ -150,9 +150,11 @@ export const PrintProfileCard = ({
         <Button onClick={onDownload} size="icon" variant="ghost">
           <Download className="h-4 w-4" />
         </Button>
-        <Button disabled={isDeleting} onClick={onDelete} size="icon" variant="ghost">
-          <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-        </Button>
+        {onDelete && (
+          <Button disabled={isDeleting} onClick={onDelete} size="icon" variant="ghost">
+            <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+          </Button>
+        )}
       </div>
     </div>
   );

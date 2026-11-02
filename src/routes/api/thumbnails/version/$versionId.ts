@@ -1,3 +1,4 @@
+import { authorizeSessionResource } from "@/server/services/folder-access.service";
 import { createFileRoute } from "@tanstack/react-router";
 import { unauthorizedResponse } from "@/server/utils/unauthorized-response";
 import {
@@ -27,6 +28,8 @@ export const Route = createFileRoute("/api/thumbnails/version/$versionId")({
         }
 
         const organizationId = session.session.activeOrganizationId;
+        const folderDenial = await authorizeSessionResource(session, "version", params.versionId);
+        if (folderDenial) return folderDenial;
         const ip = getClientIp(request);
         const rate = checkRateLimit(`thumbnail:${organizationId}:${ip}`, RATE_LIMIT);
 

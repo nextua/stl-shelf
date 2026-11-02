@@ -1,3 +1,4 @@
+import { assertResourceAccess } from "@/server/services/folder-access.service";
 /**
  * Print Profiles Server Functions
  *
@@ -56,6 +57,7 @@ export const listPrintProfiles = createServerFn({ method: "GET" })
       data: z.infer<typeof listProfilesSchema>;
       context: AuthenticatedContext;
     }) => {
+      await assertResourceAccess(context, "version", data.versionId, "viewer");
       try {
         const profiles = await printProfileService.listProfiles(
           data.versionId,
@@ -105,6 +107,7 @@ export const uploadPrintProfile = createServerFn({ method: "POST" })
       data: { versionId: string; file: File };
       context: AuthenticatedContext;
     }) => {
+      await assertResourceAccess(context, "version", data.versionId, "editor");
       try {
         const org = await db.query.organization.findFirst({
           where: eq(organization.id, context.organizationId),
@@ -163,6 +166,7 @@ export const deletePrintProfile = createServerFn({ method: "POST" })
       data: z.infer<typeof deleteProfileSchema>;
       context: AuthenticatedContext;
     }) => {
+      await assertResourceAccess(context, "profile", data.profileId, "editor");
       try {
         const org = await db.query.organization.findFirst({
           where: eq(organization.id, context.organizationId),
@@ -234,6 +238,8 @@ export const resolveProfileConflict = createServerFn({ method: "POST" })
       };
       context: AuthenticatedContext;
     }) => {
+      await assertResourceAccess(context, "version", data.versionId, "editor");
+      await assertResourceAccess(context, "profile", data.existingProfileId, "editor");
       try {
         const org = await db.query.organization.findFirst({
           where: eq(organization.id, context.organizationId),
@@ -292,6 +298,7 @@ export const submitSlicerFeedback = createServerFn({ method: "POST" })
       data: z.infer<typeof submitFeedbackSchema>;
       context: AuthenticatedContext;
     }) => {
+      await assertResourceAccess(context, "profile", data.profileId, "viewer");
       // Log the feedback for future slicer support
       logAuditEvent("unknown_slicer_feedback", {
         profileId: data.profileId,
@@ -318,6 +325,7 @@ export const getProfileDownloadInfo = createServerFn({ method: "GET" })
       data: z.infer<typeof getDownloadInfoSchema>;
       context: AuthenticatedContext;
     }) => {
+      await assertResourceAccess(context, "profile", data.profileId, "viewer");
       try {
         const downloadInfo = await printProfileService.getProfileDownloadInfo(
           data.profileId,

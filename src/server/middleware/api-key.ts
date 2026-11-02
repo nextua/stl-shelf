@@ -1,9 +1,11 @@
+import type { FolderActor } from "@/lib/folders";
+import { member, user } from "@/lib/db/schema/auth";
 import { db, apiKeys } from "@/lib/db";
 import { eq, and, isNull, or, gt } from "drizzle-orm";
 import { organization } from "@/lib/db/schema/auth";
 
 type ApiKeyValidationResult =
-  | { valid: true; organizationId: string; apiKeyId: string; scopes: string[] }
+  | { valid: true; organizationId: string; apiKeyId: string; scopes: string[]; actor: FolderActor }
   | { valid: false; error: string; status: number };
 
 /**
@@ -71,6 +73,8 @@ export async function validateApiKey(request: Request): Promise<ApiKeyValidation
         id: apiKeys.id,
         organizationId: apiKeys.organizationId,
         scopes: apiKeys.scopes,
+        userId: apiKeys.createdBy,
+        memberRole: member.role,
       })
       .from(apiKeys)
       .innerJoin(
@@ -80,6 +84,14 @@ export async function validateApiKey(request: Request): Promise<ApiKeyValidation
           isNull(organization.accountDeletionCompletedAt),
         ),
       )
+      .innerJoin(
+        member,
+        and(
+          eq(member.organizationId, apiKeys.organizationId),
+          eq(member.userId, apiKeys.createdBy),
+        ),
+      )
+      .innerJoin(user, and(eq(user.id, apiKeys.createdBy), isNull(user.accountDeletionCompletedAt)))
       .where(
         and(
           eq(apiKeys.keyHash, keyHash),
@@ -110,6 +122,11 @@ export async function validateApiKey(request: Request): Promise<ApiKeyValidation
       organizationId: foundKey.organizationId,
       apiKeyId: foundKey.id,
       scopes: foundKey.scopes,
+      actor: {
+        organizationId: foundKey.organizationId,
+        userId: foundKey.userId,
+        memberRole: foundKey.memberRole,
+      },
     };
   } catch (error) {
     console.error("API key validation error:", error);

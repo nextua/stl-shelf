@@ -65,6 +65,7 @@ import { Route as CheckoutSuccessRouteImport } from './routes/checkout/success'
 import { Route as CheckoutFailedRouteImport } from './routes/checkout/failed'
 import { Route as ApiV1UploadRouteImport } from './routes/api/v1/upload'
 import { Route as ApiV1ModelsRouteImport } from './routes/api/v1/models'
+import { Route as ApiCadPreviewFileIdRouteImport } from './routes/api/cad-preview/$fileId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiV1ModelsModelIdRouteImport } from './routes/api/v1/models.$modelId'
 import { Route as ApiThumbnailsVersionVersionIdRouteImport } from './routes/api/thumbnails/version/$versionId'
@@ -375,6 +376,11 @@ const ApiV1ModelsRoute = ApiV1ModelsRouteImport.update({
   path: '/api/v1/models',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCadPreviewFileIdRoute = ApiCadPreviewFileIdRouteImport.update({
+  id: '/api/cad-preview/$fileId',
+  path: '/api/cad-preview/$fileId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -483,6 +489,7 @@ export interface FileRoutesByFullPath {
   '/organization/members': typeof OrganizationMembersRoute
   '/organization/settings': typeof OrganizationSettingsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cad-preview/$fileId': typeof ApiCadPreviewFileIdRoute
   '/api/v1/models': typeof ApiV1ModelsRouteWithChildren
   '/api/v1/upload': typeof ApiV1UploadRoute
   '/api/download/file/$fileId': typeof ApiDownloadFileFileIdRoute
@@ -550,6 +557,7 @@ export interface FileRoutesByTo {
   '/organization/members': typeof OrganizationMembersRoute
   '/organization/settings': typeof OrganizationSettingsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cad-preview/$fileId': typeof ApiCadPreviewFileIdRoute
   '/api/v1/models': typeof ApiV1ModelsRouteWithChildren
   '/api/v1/upload': typeof ApiV1UploadRoute
   '/api/download/file/$fileId': typeof ApiDownloadFileFileIdRoute
@@ -618,6 +626,7 @@ export interface FileRoutesById {
   '/organization/members': typeof OrganizationMembersRoute
   '/organization/settings': typeof OrganizationSettingsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cad-preview/$fileId': typeof ApiCadPreviewFileIdRoute
   '/api/v1/models': typeof ApiV1ModelsRouteWithChildren
   '/api/v1/upload': typeof ApiV1UploadRoute
   '/api/download/file/$fileId': typeof ApiDownloadFileFileIdRoute
@@ -687,6 +696,7 @@ export interface FileRouteTypes {
     | '/organization/members'
     | '/organization/settings'
     | '/api/auth/$'
+    | '/api/cad-preview/$fileId'
     | '/api/v1/models'
     | '/api/v1/upload'
     | '/api/download/file/$fileId'
@@ -754,6 +764,7 @@ export interface FileRouteTypes {
     | '/organization/members'
     | '/organization/settings'
     | '/api/auth/$'
+    | '/api/cad-preview/$fileId'
     | '/api/v1/models'
     | '/api/v1/upload'
     | '/api/download/file/$fileId'
@@ -821,6 +832,7 @@ export interface FileRouteTypes {
     | '/organization/members'
     | '/organization/settings'
     | '/api/auth/$'
+    | '/api/cad-preview/$fileId'
     | '/api/v1/models'
     | '/api/v1/upload'
     | '/api/download/file/$fileId'
@@ -889,6 +901,7 @@ export interface RootRouteChildren {
   OrganizationMembersRoute: typeof OrganizationMembersRoute
   OrganizationSettingsRoute: typeof OrganizationSettingsRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiCadPreviewFileIdRoute: typeof ApiCadPreviewFileIdRoute
   ApiV1ModelsRoute: typeof ApiV1ModelsRouteWithChildren
   ApiV1UploadRoute: typeof ApiV1UploadRoute
   ApiDownloadFileFileIdRoute: typeof ApiDownloadFileFileIdRoute
@@ -1292,6 +1305,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1ModelsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cad-preview/$fileId': {
+      id: '/api/cad-preview/$fileId'
+      path: '/api/cad-preview/$fileId'
+      fullPath: '/api/cad-preview/$fileId'
+      preLoaderRoute: typeof ApiCadPreviewFileIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -1442,6 +1462,7 @@ const rootRouteChildren: RootRouteChildren = {
   OrganizationMembersRoute: OrganizationMembersRoute,
   OrganizationSettingsRoute: OrganizationSettingsRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiCadPreviewFileIdRoute: ApiCadPreviewFileIdRoute,
   ApiV1ModelsRoute: ApiV1ModelsRouteWithChildren,
   ApiV1UploadRoute: ApiV1UploadRoute,
   ApiDownloadFileFileIdRoute: ApiDownloadFileFileIdRoute,

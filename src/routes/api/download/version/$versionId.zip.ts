@@ -1,3 +1,4 @@
+import { authorizeSessionResource } from "@/server/services/folder-access.service";
 import archiver from "archiver";
 import { unauthorizedResponse } from "@/server/utils/unauthorized-response";
 import { createFileRoute } from "@tanstack/react-router";
@@ -32,6 +33,8 @@ export const Route = createFileRoute("/api/download/version/$versionId/zip")({
 
         const { versionId } = params;
         const organizationId = session.session.activeOrganizationId;
+        const folderDenial = await authorizeSessionResource(session, "version", params.versionId);
+        if (folderDenial) return folderDenial;
 
         const [org] = await db
           .select({

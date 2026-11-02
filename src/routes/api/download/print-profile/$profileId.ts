@@ -1,3 +1,4 @@
+import { authorizeSessionResource } from "@/server/services/folder-access.service";
 import { createFileRoute } from "@tanstack/react-router";
 import { unauthorizedResponse } from "@/server/utils/unauthorized-response";
 import { and, eq } from "drizzle-orm";
@@ -27,6 +28,8 @@ export const Route = createFileRoute("/api/download/print-profile/$profileId")({
         }
 
         const organizationId = session.session.activeOrganizationId;
+        const folderDenial = await authorizeSessionResource(session, "profile", params.profileId);
+        if (folderDenial) return folderDenial;
         const ip = getClientIp(request);
         const rate = checkRateLimit(`download:${organizationId}:${ip}`, RATE_LIMIT);
 

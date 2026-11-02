@@ -1,5 +1,5 @@
 import type { InferInsertModel } from "drizzle-orm";
-import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { type SQL, and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { models, modelTags, tags } from "@/lib/db/schema/models";
 
@@ -77,7 +77,7 @@ export class TagService {
       .orderBy(desc(tags.usageCount), asc(tags.name));
   }
 
-  async getAllTagsForOrganization(organizationId: string): Promise<TagInfo[]> {
+  async getAllTagsForOrganization(organizationId: string, visibility?: SQL): Promise<TagInfo[]> {
     const rows = await db
       .select({
         name: tags.name,
@@ -87,7 +87,7 @@ export class TagService {
       .from(modelTags)
       .innerJoin(tags, eq(tags.id, modelTags.tagId))
       .innerJoin(models, eq(models.id, modelTags.modelId))
-      .where(and(eq(models.organizationId, organizationId), isNull(models.deletedAt)))
+      .where(and(eq(models.organizationId, organizationId), isNull(models.deletedAt), visibility))
       .groupBy(tags.name, tags.color)
       .orderBy(asc(tags.name));
 

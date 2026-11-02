@@ -3,8 +3,6 @@ import { FileText } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SourceFilesSection } from "@/components/model-detail/source-files-section";
-import { canEditModel, usePermissions } from "@/hooks/use-permissions";
-import { authClient } from "@/lib/auth-client";
 import { getModel, getModelFiles, getModelVersions } from "@/server/functions/models";
 
 type ModelFilesPanelProps = {
@@ -13,13 +11,11 @@ type ModelFilesPanelProps = {
 };
 
 export const ModelFilesPanel = ({ modelId, versionId }: ModelFilesPanelProps) => {
-  const { data: session } = authClient.useSession();
-  const { permissions } = usePermissions();
   const { data: model } = useQuery({
     queryKey: ["model", modelId],
     queryFn: () => getModel({ data: { id: modelId } }),
   });
-  const canEdit = model ? canEditModel(permissions, model.owner.id, session?.user?.id) : false;
+  const canEdit = model?.permissions.canEdit ?? false;
 
   const { data: versions, isLoading: versionsLoading } = useQuery({
     queryKey: ["model", modelId, "versions"],

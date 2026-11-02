@@ -14,10 +14,9 @@ import { storageService } from "@/server/services/storage";
  * (routes answer 404, identical to "does not exist", so existence never
  * leaks). URLs are stable and unsigned: possessing one grants nothing.
  *
- * Caching (the cost fix): stable URLs + ETag + `Cache-Control: private,
- * max-age=86400` finally let browsers cache thumbnails (presigned URLs were
- * unique per render → zero cache hits). `private` ONLY — a shared cache must
- * never store cross-user content.
+ * Stable URLs and ETags avoid retransmitting unchanged images. Browsers must
+ * revalidate through the authenticated route so folder revocations and account
+ * changes are checked before any cached image is reused.
  */
 
 /** versionId → its thumbnail key, ONLY if the version's model is in this org. */
@@ -127,7 +126,7 @@ export function etagMatches(ifNoneMatch: string, etag: string): boolean {
   return ifNoneMatch.split(",").some((candidate) => normalize(candidate) === normalize(etag));
 }
 
-const CACHE_CONTROL = "private, max-age=86400";
+const CACHE_CONTROL = "private, no-cache, max-age=0, must-revalidate";
 
 /**
  * Serve an ALREADY-AUTHORIZED thumbnail with HTTP caching, Range support and
@@ -155,6 +154,7 @@ export async function serveThumbnail(params: {
   const baseHeaders: Record<string, string> = {
     ETag: etag,
     "Cache-Control": CACHE_CONTROL,
+    Vary: "Cookie",
     "Accept-Ranges": "bytes",
   };
 

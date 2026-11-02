@@ -1,3 +1,4 @@
+import { FolderBrowser } from "@/components/folders/folder-browser";
 import { infiniteQueryOptions } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
@@ -8,10 +9,12 @@ import { SearchFilterBar } from "@/components/models/search-filter-bar";
 import { useHasModels, hasModelsQueryOptions } from "@/hooks/use-has-models";
 import { MODELS_QUERY_KEY } from "@/hooks/use-delete-model";
 import { tagsQueryOptions } from "@/hooks/use-all-tags";
+import { foldersQueryOptions, useLibraryFolders } from "@/hooks/use-library-folders";
 
 // Search params schema for URL state
 // Handle both string and array inputs (TanStack Router may parse [] as array)
 export const librarySearchSchema = z.object({
+  folder: z.uuid().optional().catch(undefined),
   q: z.string().optional().catch(undefined),
   // Handle both ?tags=a,b,c (string) and ?tags=a&tags=b (array) formats
   tags: z
@@ -33,10 +36,14 @@ const parseTags = (tagsString?: string): string[] | undefined => {
 };
 
 // Query options for models - used in both loader and hooks
-export const modelsQueryOptions = (search?: string, tagsString?: string) => {
+export const modelsQueryOptions = (
+  search?: string,
+  tagsString?: string,
+  folderId: string | null = null,
+) => {
   const tags = parseTags(tagsString);
   return infiniteQueryOptions({
-    queryKey: [...MODELS_QUERY_KEY, "infinite", { search, tags, limit: 12 }],
+    queryKey: [...MODELS_QUERY_KEY, "infinite", { search, tags, limit: 12, folderId }],
     queryFn: ({ pageParam }) =>
       listModels({
         data: {
@@ -44,6 +51,7 @@ export const modelsQueryOptions = (search?: string, tagsString?: string) => {
           limit: 12,
           search: search || undefined,
           tags,
+          folderId,
         },
       }),
     initialPageParam: undefined as ModelListCursor | undefined,
@@ -59,13 +67,20 @@ export const Route = createFileRoute("/library")({
   // Extract search params as loader dependencies
   loaderDeps: ({ search }) => ({
     q: search.q,
+    folder: search.folder,
     tags: search.tags,
   }),
   loader: async ({ context, deps }) => {
     // Prefetch all queries for SSR - no loading states on initial render
     try {
+      const directory = await context.queryClient.ensureQueryData(foldersQueryOptions());
+      const canOpenFolder =
+        !deps.folder || directory.folders.some((folder) => folder.id === deps.folder);
       await Promise.all([
-        context.queryClient.ensureInfiniteQueryData(modelsQueryOptions(deps.q, deps.tags)),
+        canOpenFolder &&
+          context.queryClient.ensureInfiniteQueryData(
+            modelsQueryOptions(deps.q, deps.tags, deps.folder ?? null),
+          ),
         context.queryClient.ensureQueryData(tagsQueryOptions()),
         context.queryClient.ensureQueryData(hasModelsQueryOptions()),
       ]);
@@ -81,20 +96,23 @@ export const Route = createFileRoute("/library")({
 });
 
 function LibraryPage() {
+  const search = Route.useSearch();
   const { hasModels, isLoading } = useHasModels();
+  const { data: directory } = useLibraryFolders();
+  const canOpenFolder =
+    !search.folder || directory?.folders.some((folder) => folder.id === search.folder);
 
   return (
     <div className="container mx-auto max-w-7xl px-4 py-6">
       <div className="mb-6">
-        <h1 className="mb-2 font-bold text-3xl">My Library</h1>
-        <p className="text-muted-foreground">
-          Your personal 3D model library, organized and versioned.
-        </p>
+        <h1 className="mb-2 font-bold text-3xl">Бібліотека</h1>
+        <p className="text-muted-foreground">Проєкти, вкладені теки, файли та версії моделей.</p>
       </div>
 
       <div className="space-y-6">
-        {!isLoading && hasModels && <SearchFilterBar />}
-        <ModelGrid />
+        <FolderBrowser folderId={search.folder ?? null} />
+        {canOpenFolder && !isLoading && hasModels && <SearchFilterBar />}
+        {canOpenFolder && <ModelGrid />}
       </div>
     </div>
   );

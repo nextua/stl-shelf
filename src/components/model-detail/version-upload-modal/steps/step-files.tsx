@@ -66,7 +66,9 @@ function getCategoryStatus(files: UploadFile[], previewImage?: File) {
 
   return {
     ...result,
-    hasModelFile: result.model.hasFiles,
+    hasPreviewFile: result.model.files.some(({ file }) =>
+      ["stl", "obj", "sldprt"].includes(getFileExtension(file.name)),
+    ),
   };
 }
 
@@ -326,13 +328,13 @@ export function StepFiles({ form, onNext }: StepFilesProps) {
       </div>
 
       {/* Preview Warning */}
-      {!categoryStatus.hasModelFile && uploadFiles.length > 0 && (
+      {!categoryStatus.hasPreviewFile && uploadFiles.length > 0 && (
         <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-50 px-3 py-2 text-amber-800 dark:border-amber-500/20 dark:bg-amber-950/30 dark:text-amber-200">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <div className="text-xs">
-            <p className="font-medium">No model file</p>
+            <p className="font-medium">3D preview not available</p>
             <p className="text-amber-700 dark:text-amber-300">
-              Upload an STL, OBJ, or PLY file to enable 3D preview
+              Add an STL, OBJ, or SLDPRT file to enable browser preview.
             </p>
           </div>
         </div>
@@ -356,7 +358,7 @@ export function StepFiles({ form, onNext }: StepFilesProps) {
             <p className="font-medium text-sm">Drag & drop files here, or click to browse</p>
             <p className="text-muted-foreground text-xs">{UPLOAD_ACCEPTED_EXTENSIONS.join(", ")}</p>
             <p className="text-muted-foreground text-xs">
-              STL/OBJ/PLY: 100-150MB • 3MF: 250MB • Images: 10MB
+              SLDPRT: 100MB • STL/OBJ/PLY: 100-150MB • 3MF: 250MB • Images: 10MB
             </p>
           </div>
         )}

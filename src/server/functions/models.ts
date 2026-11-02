@@ -1,3 +1,11 @@
+import {
+  assertFolderAccess,
+  assertModelAccess,
+  assertResourceAccess,
+  modelVisibilityPredicate,
+  loadFolderGraph,
+} from "@/server/services/folder-access.service";
+import { isLibraryAdmin } from "@/lib/folders";
 import { createServerFn } from "@tanstack/react-start";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { and, count, eq, isNull, sum } from "drizzle-orm";
@@ -5,7 +13,6 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { organization } from "@/lib/db/schema/auth";
 import { models, modelFiles, modelVersions } from "@/lib/db/schema/models";
-import { canDeleteModel, canEditModel, type Role } from "@/lib/permissions";
 import type { SubscriptionTier } from "@/lib/billing/config";
 import { getTierConfig, isUnlimited } from "@/lib/billing/config";
 import { buildOpenPanelProfile, trackModelViewed, trackSearchPerformed } from "@/lib/openpanel";
@@ -32,6 +39,7 @@ const listModelsCursorSchema = z.object({
 export type ModelListCursor = z.infer<typeof listModelsCursorSchema>;
 
 const listModelsSchema = z.object({
+  folderId: z.uuid().nullable().optional(),
   cursor: listModelsCursorSchema.optional(),
   limit: z.number().min(1).max(100).default(12),
   search: z.string().max(100).optional(),
@@ -109,20 +117,7 @@ async function assertCanEditModel(modelId: string, context: AuthenticatedContext
     accountDeletionDeadline: org.accountDeletionDeadline ?? context.accountDeletionDeadline,
   });
 
-  const [model] = await db
-    .select({ ownerId: models.ownerId })
-    .from(models)
-    .where(and(eq(models.id, modelId), eq(models.organizationId, context.organizationId)))
-    .limit(1);
-
-  if (!model) {
-    throw new Error("Model not found");
-  }
-
-  const isOwnModel = model.ownerId === context.userId;
-  if (!canEditModel(context.memberRole as Role, isOwnModel)) {
-    throw new Error("You don't have permission to edit this model");
-  }
+  await assertModelAccess(context, modelId, "editor");
 }
 
 // List models with pagination
@@ -137,12 +132,15 @@ export const listModels = createServerFn({ method: "GET" })
       data: z.infer<typeof listModelsSchema>;
       context: AuthenticatedContext;
     }) => {
+      if (data.folderId) await assertFolderAccess(context, data.folderId);
       const result = await modelListService.listModels({
         organizationId: context.organizationId,
         cursor: data.cursor,
         limit: data.limit,
         search: data.search,
         tags: data.tags,
+        folderId: data.folderId,
+        visibility: await modelVisibilityPredicate(context),
       });
 
       // Track search events (only when search query is present)
@@ -156,7 +154,20 @@ export const listModels = createServerFn({ method: "GET" })
         }).catch(() => {}); // Fire and forget
       }
 
-      return result;
+      const { levels } = await loadFolderGraph(context);
+      return {
+        ...result,
+        models: result.models.map((model) => {
+          const level = isLibraryAdmin(context)
+            ? 3
+            : model.folderId
+              ? (levels.get(model.folderId) ?? 0)
+              : model.owner.id === context.userId
+                ? 2
+                : 0;
+          return { ...model, canEdit: level >= 2, canDelete: level >= 3, canMove: level >= 3 };
+        }),
+      };
     },
   );
 
@@ -164,7 +175,10 @@ export const listModels = createServerFn({ method: "GET" })
 export const getAllTags = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }: { context: AuthenticatedContext }) => {
-    return await tagService.getAllTagsForOrganization(context.organizationId);
+    return await tagService.getAllTagsForOrganization(
+      context.organizationId,
+      await modelVisibilityPredicate(context),
+    );
   });
 
 // Get single model
@@ -179,6 +193,7 @@ export const getModel = createServerFn({ method: "GET" })
       data: z.infer<typeof getModelSchema>;
       context: AuthenticatedContext;
     }) => {
+      await assertModelAccess(context, data.id);
       const model = await modelDetailService.getModel(data.id, context.organizationId);
 
       // Track model view
@@ -188,7 +203,7 @@ export const getModel = createServerFn({ method: "GET" })
         source: "direct",
       }).catch(() => {}); // Fire and forget
 
-      return model;
+      return { ...model, permissions: await assertModelAccess(context, data.id) };
     },
   );
 
@@ -204,6 +219,7 @@ export const getModelVersions = createServerFn({ method: "GET" })
       data: z.infer<typeof getModelVersionsSchema>;
       context: AuthenticatedContext;
     }) => {
+      await assertModelAccess(context, data.modelId);
       return await modelDetailService.getModelVersions(data.modelId, context.organizationId);
     },
   );
@@ -220,6 +236,7 @@ export const getModelFiles = createServerFn({ method: "GET" })
       data: z.infer<typeof getModelFilesSchema>;
       context: AuthenticatedContext;
     }) => {
+      await assertModelAccess(context, data.modelId);
       return await modelDetailService.getModelFiles(
         data.modelId,
         data.versionId,
@@ -240,6 +257,7 @@ export const getModelStatistics = createServerFn({ method: "GET" })
       data: z.infer<typeof getModelSchema>;
       context: AuthenticatedContext;
     }) => {
+      await assertModelAccess(context, data.id);
       return await modelDetailService.getModelStatistics(data.id, context.organizationId);
     },
   );
@@ -256,6 +274,7 @@ export const getModelTags = createServerFn({ method: "GET" })
       data: z.infer<typeof getModelSchema>;
       context: AuthenticatedContext;
     }) => {
+      await assertModelAccess(context, data.id);
       return await modelDetailService.getModelTags(data.id, context.organizationId);
     },
   );
@@ -351,6 +370,10 @@ export const createModel = createServerFn({ method: "POST" })
       throw new Error("Expected FormData");
     }
     const name = input.get("name") as string;
+    const folderId = z
+      .uuid()
+      .nullable()
+      .parse(input.get("folderId") || null);
     const description = (input.get("description") as string) || undefined;
     const tagsJson = input.get("tags") as string;
     const tags: string[] = tagsJson ? JSON.parse(tagsJson) : [];
@@ -361,7 +384,7 @@ export const createModel = createServerFn({ method: "POST" })
       throw new Error("Name and at least one file are required");
     }
 
-    return { name, description, tags, files, previewImage };
+    return { name, description, tags, files, previewImage, folderId };
   })
   .middleware([authMiddleware])
   .handler(
@@ -371,6 +394,7 @@ export const createModel = createServerFn({ method: "POST" })
     }: {
       data: {
         name: string;
+        folderId: string | null;
         description: string | undefined;
         tags: string[];
         files: File[];
@@ -378,6 +402,9 @@ export const createModel = createServerFn({ method: "POST" })
       };
       context: AuthenticatedContext;
     }) => {
+      await assertFolderAccess(context, data.folderId, "editor");
+      if (data.files.some((file) => !(file instanceof File) || file.size > 100 * 1024 * 1024))
+        throw new Error("Максимальний розмір файлу — 100 МБ");
       try {
         const org = await db.query.organization.findFirst({
           where: eq(organization.id, context.organizationId),
@@ -439,6 +466,7 @@ export const createModel = createServerFn({ method: "POST" })
         const result = await modelCreationService.createModel({
           organizationId: context.organizationId,
           ownerId: context.userId,
+          folderId: data.folderId,
           name: data.name,
           description: data.description ?? null,
           tags: uniqueTags,
@@ -515,23 +543,7 @@ export const addVersion = createServerFn({ method: "POST" })
       context: AuthenticatedContext;
     }) => {
       try {
-        // RBAC: Check edit permission (admins can edit any, members can edit own only)
-        const [existingModel] = await db
-          .select({ ownerId: models.ownerId })
-          .from(models)
-          .where(
-            and(eq(models.id, data.modelId), eq(models.organizationId, context.organizationId)),
-          )
-          .limit(1);
-
-        if (!existingModel) {
-          throw new Error("Model not found");
-        }
-
-        const isOwnModel = existingModel.ownerId === context.userId;
-        if (!canEditModel(context.memberRole as Role, isOwnModel)) {
-          throw new Error("You don't have permission to add versions to this model");
-        }
+        await assertModelAccess(context, data.modelId, "editor");
 
         // Get organization and tier for limit checking
         const org = await db.query.organization.findFirst({
@@ -625,6 +637,7 @@ export const downloadFile = createServerFn({ method: "POST" })
       data: z.infer<typeof downloadFileSchema>;
       context: AuthenticatedContext;
     }) => {
+      await assertResourceAccess(context, "storage", data.storageKey);
       try {
         // Return signed URL instead of Blob (Blob not serializable in server functions)
         const downloadInfo = await modelDownloadService.getFileDownloadInfo(
@@ -671,6 +684,7 @@ export const downloadModelZip = createServerFn({ method: "POST" })
       data: z.infer<typeof downloadModelZipSchema>;
       context: AuthenticatedContext;
     }) => {
+      await assertModelAccess(context, data.modelId);
       try {
         // For ZIP downloads, we need a different approach - create ZIP on server and return URL
         // For now, return the model info so client can download files individually
@@ -718,6 +732,7 @@ export const downloadVersionZip = createServerFn({ method: "POST" })
       data: z.infer<typeof downloadVersionZipSchema>;
       context: AuthenticatedContext;
     }) => {
+      await assertModelAccess(context, data.modelId);
       try {
         // Return files list so client can generate download URLs
         const files = await modelDetailService.getModelFiles(
@@ -767,6 +782,7 @@ export const getFileDownloadInfo = createServerFn({ method: "GET" })
       data: z.infer<typeof downloadFileSchema>;
       context: AuthenticatedContext;
     }) => {
+      await assertResourceAccess(context, "storage", data.storageKey);
       try {
         const downloadInfo = await modelDownloadService.getFileDownloadInfo(
           data.storageKey,
@@ -827,9 +843,7 @@ export const deleteModel = createServerFn({ method: "POST" })
         });
 
         // RBAC: Only admins and owners can delete models
-        if (!canDeleteModel(context.memberRole as Role)) {
-          throw new Error("You don't have permission to delete models");
-        }
+        await assertModelAccess(context, data.id, "manager");
 
         const result = await modelDeleteService.deleteModel({
           modelId: data.id,
@@ -894,21 +908,7 @@ export const renameModel = createServerFn({ method: "POST" })
           accountDeletionDeadline: org.accountDeletionDeadline ?? context.accountDeletionDeadline,
         });
 
-        // RBAC: Check edit permission (admins can edit any, members can edit own only)
-        const [model] = await db
-          .select({ ownerId: models.ownerId })
-          .from(models)
-          .where(and(eq(models.id, data.id), eq(models.organizationId, context.organizationId)))
-          .limit(1);
-
-        if (!model) {
-          throw new Error("Model not found");
-        }
-
-        const isOwnModel = model.ownerId === context.userId;
-        if (!canEditModel(context.memberRole as Role, isOwnModel)) {
-          throw new Error("You don't have permission to edit this model");
-        }
+        await assertModelAccess(context, data.id, "editor");
 
         const result = await modelUpdateService.renameModel({
           modelId: data.id,

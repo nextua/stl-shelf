@@ -151,7 +151,7 @@ export function SearchFilterBar({ className }: SearchFilterBarProps) {
       const runNavigate = (replace: boolean) => {
         isSyncingLocalRef.current = true;
         void navigate({
-          search: buildSearch(nextDraft),
+          search: { ...buildSearch(nextDraft), folder: search.folder },
           replace,
         });
       };
@@ -177,7 +177,7 @@ export function SearchFilterBar({ className }: SearchFilterBarProps) {
       setIsPending(false);
       runNavigate(false);
     },
-    [navigate],
+    [navigate, search.folder],
   );
 
   const updateDraft = useCallback(

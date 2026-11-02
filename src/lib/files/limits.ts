@@ -27,6 +27,7 @@ export const FILE_SIZE_LIMITS = {
   "3mf": 250 * MB, // Container with textures, settings, multi-object
   step: 250 * MB, // CAD interchange
   stp: 250 * MB, // STEP alias
+  sldprt: 100 * MB, // Native CAD source; stored without conversion
 
   // Slicer Output
   gcode: 50 * MB, // Text-based, can be long
@@ -57,12 +58,21 @@ export const MAX_FILES_PER_UPLOAD = 10;
 /**
  * All supported extensions for 3D files (non-image)
  */
-export const MODEL_EXTENSIONS = ["stl", "obj", "ply", "3mf", "step", "stp", "gcode"] as const;
+export const MODEL_EXTENSIONS = [
+  "stl",
+  "obj",
+  "ply",
+  "3mf",
+  "step",
+  "stp",
+  "sldprt",
+  "gcode",
+] as const;
 
 /**
  * Extensions that support 3D preview
  */
-export const PREVIEW_EXTENSIONS = ["stl", "obj", "ply", "3mf"] as const;
+export const PREVIEW_EXTENSIONS = ["stl", "obj", "ply", "3mf", "sldprt"] as const;
 
 /**
  * Extract the lowercased extension (without dot) from a filename.
@@ -125,6 +135,7 @@ export const MIME_TYPES: Record<string, string> = {
   ply: "application/x-ply",
   step: "model/step",
   stp: "model/step",
+  sldprt: "application/octet-stream",
   gcode: "text/x.gcode",
   jpg: "image/jpeg",
   jpeg: "image/jpeg",

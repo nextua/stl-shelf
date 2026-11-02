@@ -1,3 +1,4 @@
+import { useLocation } from "@tanstack/react-router";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -48,12 +49,16 @@ const ACCEPTED_FORMATS = {
   "model/3mf": [".3mf"],
   "application/x-ply": [".ply"],
   "model/ply": [".ply"],
+  "application/octet-stream": [".sldprt"],
 };
 
-const ACCEPTED_EXTENSIONS = [".stl", ".obj", ".3mf", ".ply"];
+const ACCEPTED_EXTENSIONS = [".stl", ".obj", ".3mf", ".ply", ".sldprt"];
 const FILE_EXTENSION_REGEX = /\.[^/.]+$/;
 
 export function ModelUpload() {
+  const currentFolderId = useLocation({
+    select: (location) => (location.search as { folder?: string }).folder,
+  });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
@@ -76,6 +81,7 @@ export function ModelUpload() {
     }) => {
       const formData = new FormData();
       formData.append("name", data.name);
+      if (currentFolderId) formData.append("folderId", currentFolderId);
       formData.append("description", data.description);
       formData.append("tags", JSON.stringify(data.tags));
       for (const file of data.files) {
@@ -356,7 +362,9 @@ export function ModelUpload() {
         <Card>
           <CardHeader>
             <CardTitle>Files</CardTitle>
-            <CardDescription>Upload STL, OBJ, 3MF, or PLY files (max 100MB each)</CardDescription>
+            <CardDescription>
+              Upload STL, OBJ, 3MF, PLY, or SLDPRT files (max 100MB each)
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {/* Dropzone */}

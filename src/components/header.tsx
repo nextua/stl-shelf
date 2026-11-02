@@ -1,3 +1,5 @@
+import { useLibraryFolders } from "@/hooks/use-library-folders";
+import { useLocation } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
 import {
@@ -50,6 +52,14 @@ export default function Header() {
   const { data: organizations, isPending: isLoadingOrgs } = useOrganizations();
   const { data: activeOrg } = useActiveOrganization();
   const { permissions } = usePermissions();
+  const currentFolderId = useLocation({
+    select: (location) => (location.search as { folder?: string }).folder,
+  });
+  const path = useLocation({ select: (location) => location.pathname });
+  const { data: folderState } = useLibraryFolders(Boolean(session?.user) && path === "/library");
+  const canUpload = currentFolderId
+    ? (folderState?.folders.find((folder) => folder.id === currentFolderId)?.accessLevel ?? 0) >= 2
+    : Boolean(permissions?.isAdmin);
 
   async function switchOrganization(orgId: string) {
     try {
@@ -80,7 +90,7 @@ export default function Header() {
         </Link>
         <div className="flex items-center gap-2">
           {/* Upload button - Only show if user has organizations */}
-          {hasOrganizations && (
+          {hasOrganizations && canUpload && (
             <Button onClick={() => uploadModalActions.openModal()} size="icon">
               <Plus className="h-4 w-4" />
             </Button>

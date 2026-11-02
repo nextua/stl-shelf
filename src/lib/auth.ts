@@ -318,11 +318,15 @@ export const auth = betterAuth({
         },
       },
     }),
-    captcha({
-      provider: "cloudflare-turnstile",
-      endpoints: ["/sign-in/email", "/sign-up/email"],
-      secretKey: env.TURNSTILE_SECRET_KEY,
-    }),
+    ...(env.TURNSTILE_SECRET_KEY
+      ? [
+          captcha({
+            provider: "cloudflare-turnstile",
+            endpoints: ["/sign-in/email", "/sign-up/email"],
+            secretKey: env.TURNSTILE_SECRET_KEY,
+          }),
+        ]
+      : []),
     magicLink({
       expiresIn: 60 * 15, // 15 minutes
       sendMagicLink: async ({ email, url }: { email: string; url: string }) => {
@@ -411,6 +415,7 @@ export const auth = betterAuth({
 
   emailAndPassword: {
     enabled: true,
+    disableSignUp: env.AUTH_DISABLE_SIGNUP === "true",
     minPasswordLength: 8,
     requireEmailVerification: true,
     resetPasswordTokenExpiresIn: 60 * 60, // 1 hour

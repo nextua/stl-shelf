@@ -22,6 +22,7 @@ export const env = createEnv({
     STORAGE_SECRET_KEY: z.string().min(1),
     STORAGE_BUCKET_NAME: z.string().min(1).default("stl-models"),
     STORAGE_USE_SSL: z.enum(["true", "false"]).default("true"),
+    CAD_PREVIEW_URL: z.url().optional(),
 
     // BetterAuth / Auth
     AUTH_URL: z.url(),
@@ -29,6 +30,7 @@ export const env = createEnv({
     AUTH_COOKIE_DOMAIN: z.string().optional(),
     AUTH_COOKIE_SAMESITE: z.enum(["lax", "strict", "none"]).default("lax"),
     AUTH_TRUSTED_ORIGINS: z.string().optional(),
+    AUTH_DISABLE_SIGNUP: z.enum(["true", "false"]).default("false"),
     BETTER_AUTH_SECRET: z.string().min(32),
 
     // OAuth Providers (optional)
@@ -39,10 +41,10 @@ export const env = createEnv({
 
     // Captcha (Cloudflare Turnstile)
     TURNSTILE_SITE_KEY: z.string().optional(),
-    TURNSTILE_SECRET_KEY: z.string(),
+    TURNSTILE_SECRET_KEY: z.string().default(""),
 
     // Resend for transactional emails
-    RESEND_API_KEY: z.string(),
+    RESEND_API_KEY: z.string().default(""),
     EMAIL_FROM: z.string().optional().default("STL Shelf <noreply@mail.stl-shelf.com>"),
     EMAIL_LOGO_URL: z.url().optional(),
     RESEND_SEGMENT_USERS: z.string().optional(),
@@ -72,8 +74,8 @@ export const env = createEnv({
     POLAR_PRODUCT_SEAT_SINGLE: z.string().optional(),
 
     // OpenPanel Analytics
-    OPENPANEL_CLIENT_ID: z.string().min(1),
-    OPENPANEL_CLIENT_SECRET: z.string().min(1),
+    OPENPANEL_CLIENT_ID: z.string().default(""),
+    OPENPANEL_CLIENT_SECRET: z.string().default(""),
     OPENPANEL_API_URL: z.string().optional(),
 
     // Better Stack Logging

@@ -61,7 +61,11 @@ import {
   storageObjects,
 } from "./schema/metering";
 
+import { libraryFolders, folderGrants } from "./schema/folders";
+
 export const schema = {
+  libraryFolders,
+  folderGrants,
   // Models
   models,
   modelVersions,
@@ -174,3 +178,5 @@ export * from "./schema/announcements";
 export * from "./schema/billing";
 export * from "./schema/consent";
 export * from "./schema/metering";
+
+export * from "./schema/folders";

@@ -39,11 +39,7 @@ export const ModelDetailHeader = ({
     queryFn: () => getModel({ data: { id: modelId } }),
   });
 
-  const {
-    files,
-    modelFiles,
-    activeVersion: version,
-  } = useModelFiles({
+  const { files, activeVersion: version } = useModelFiles({
     modelId,
     versionId: activeVersion,
   });
@@ -105,7 +101,7 @@ export const ModelDetailHeader = ({
     <div className="mb-6">
       <div className="mb-4 flex items-center gap-4">
         <Button asChild className="transition-colors hover:text-brand" size="sm" variant="ghost">
-          <Link to="/library">
+          <Link to="/library" search={{ folder: model.folderId ?? undefined }}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Library
           </Link>
@@ -114,12 +110,16 @@ export const ModelDetailHeader = ({
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 flex-1">
-          <InlineNameEditor
-            modelId={modelId}
-            name={model.name}
-            onEditEnd={() => setIsEditingName(false)}
-            onEditStart={() => setIsEditingName(true)}
-          />
+          {model.permissions.canEdit ? (
+            <InlineNameEditor
+              modelId={modelId}
+              name={model.name}
+              onEditEnd={() => setIsEditingName(false)}
+              onEditStart={() => setIsEditingName(true)}
+            />
+          ) : (
+            <h1 className="text-3xl font-bold">{model.name}</h1>
+          )}
           {model.description && <p className="mt-3 text-muted-foreground">{model.description}</p>}
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <TooltipProvider>
@@ -150,30 +150,34 @@ export const ModelDetailHeader = ({
         {!isEditingName && (
           <div className="flex shrink-0 gap-2">
             <Button
-              disabled={isDownloading || !modelFiles?.length}
+              disabled={isDownloading || !files?.length}
               onClick={handleDownloadZip}
               size="sm"
             >
               <Download className="mr-2 h-4 w-4" />
               {isDownloading ? "Downloading..." : "Download"}
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="icon" variant="outline">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onUploadVersionClick}>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload New Version
-                </DropdownMenuItem>
-                <DropdownMenuItem className="text-destructive" onClick={onDeleteClick}>
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Model
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {model.permissions.canEdit && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="icon" variant="outline">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={onUploadVersionClick}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Upload New Version
+                  </DropdownMenuItem>
+                  {model.permissions.canDelete && (
+                    <DropdownMenuItem className="text-destructive" onClick={onDeleteClick}>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete Model
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         )}
       </div>

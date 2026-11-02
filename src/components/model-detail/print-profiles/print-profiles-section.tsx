@@ -26,9 +26,10 @@ import {
 
 type PrintProfilesSectionProps = {
   versionId: string;
+  canEdit?: boolean;
 };
 
-export const PrintProfilesSection = ({ versionId }: PrintProfilesSectionProps) => {
+export const PrintProfilesSection = ({ versionId, canEdit = false }: PrintProfilesSectionProps) => {
   const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
   const [conflicts, setConflicts] = useState<ConflictInfo[]>([]);
@@ -210,6 +211,8 @@ export const PrintProfilesSection = ({ versionId }: PrintProfilesSectionProps) =
     );
   }
 
+  if (profiles.length === 0 && !canEdit)
+    return <p className="py-6 text-sm text-muted-foreground">Профілів друку поки немає.</p>;
   if (profiles.length === 0) {
     return (
       <>
@@ -227,18 +230,20 @@ export const PrintProfilesSection = ({ versionId }: PrintProfilesSectionProps) =
 
   return (
     <div className="space-y-4">
-      <ProfileUploadZone
-        className="mb-4"
-        isUploading={isUploading}
-        onFilesSelected={handleFilesSelected}
-      />
+      {canEdit && (
+        <ProfileUploadZone
+          className="mb-4"
+          isUploading={isUploading}
+          onFilesSelected={handleFilesSelected}
+        />
+      )}
 
       <div className="space-y-3">
         {profiles.map((profile) => (
           <PrintProfileCard
             isDeleting={deletingId === profile.id}
             key={profile.id}
-            onDelete={() => handleDelete(profile.id)}
+            onDelete={canEdit ? () => handleDelete(profile.id) : undefined}
             onDownload={() => handleDownload(profile.id)}
             profile={profile}
           />

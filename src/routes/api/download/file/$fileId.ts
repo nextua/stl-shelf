@@ -1,3 +1,4 @@
+import { authorizeSessionResource } from "@/server/services/folder-access.service";
 import { createFileRoute } from "@tanstack/react-router";
 import { unauthorizedResponse } from "@/server/utils/unauthorized-response";
 import { and, eq, isNull } from "drizzle-orm";
@@ -31,10 +32,12 @@ export const Route = createFileRoute("/api/download/file/$fileId")({
         }
 
         const organizationId = session.session.activeOrganizationId;
+        const folderDenial = await authorizeSessionResource(session, "file", params.fileId);
+        if (folderDenial) return folderDenial;
         const ip = getClientIp(request);
         const rate = checkRateLimit(`download:${organizationId}:${ip}`, RATE_LIMIT);
         const disposition = new URL(request.url).searchParams.get("disposition");
-        const isInline = !shouldTrackEgressForDisposition(disposition);
+        const inlineRequested = !shouldTrackEgressForDisposition(disposition);
 
         if (!rate.allowed) {
           return Response.json(
@@ -50,6 +53,7 @@ export const Route = createFileRoute("/api/download/file/$fileId")({
             id: modelFiles.id,
             size: modelFiles.size,
             mimeType: modelFiles.mimeType,
+            extension: modelFiles.extension,
             storageKey: modelFiles.storageKey,
             originalName: modelFiles.originalName,
             modelId: models.id,
@@ -69,6 +73,20 @@ export const Route = createFileRoute("/api/download/file/$fileId")({
         if (!file) {
           return new Response("File not found", { status: 404 });
         }
+
+        const inlineTypes: Record<string, string> = {
+          stl: "application/octet-stream",
+          obj: "text/plain",
+          ply: "application/octet-stream",
+          "3mf": "application/octet-stream",
+          png: "image/png",
+          jpg: "image/jpeg",
+          jpeg: "image/jpeg",
+          webp: "image/webp",
+          gif: "image/gif",
+        };
+        const safeInlineType = inlineTypes[file.extension.toLowerCase()];
+        const isInline = inlineRequested && Boolean(safeInlineType);
 
         // ENFORCEMENT (unchanged semantics): attachment-only, pre-stream,
         // against organization.egressBytesThisMonth. Inline previews stay
@@ -124,7 +142,8 @@ export const Route = createFileRoute("/api/download/file/$fileId")({
 
         return new Response(proxyMeter.wrapStream(internalMeter.wrapStream(stream)), {
           headers: {
-            "Content-Type": file.mimeType || "application/octet-stream",
+            "Content-Type": isInline ? safeInlineType! : "application/octet-stream",
+            "X-Content-Type-Options": "nosniff",
             "Content-Disposition": createContentDisposition(
               isInline ? "inline" : "attachment",
               filename,

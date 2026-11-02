@@ -1,3 +1,4 @@
+import { assertResourceAccess } from "@/server/services/folder-access.service";
 import { createServerFn } from "@tanstack/react-start";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { and, eq, isNull, sum } from "drizzle-orm";
@@ -187,6 +188,7 @@ export const setGeneratedThumbnail = createServerFn({ method: "POST" })
       data: { versionId: string; image: File };
       context: AuthenticatedContext;
     }) => {
+      await assertResourceAccess(context, "version", data.versionId, "editor");
       try {
         const org = await db.query.organization.findFirst({
           where: eq(organization.id, context.organizationId),
@@ -458,6 +460,7 @@ export const getVersionCompleteness = createServerFn({ method: "GET" })
       data: z.infer<typeof getVersionCompletenessSchema>;
       context: AuthenticatedContext;
     }) => {
+      await assertResourceAccess(context, "version", data.versionId);
       const version = await db.query.modelVersions.findFirst({
         where: eq(modelVersions.id, data.versionId),
         with: {

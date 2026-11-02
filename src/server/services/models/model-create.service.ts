@@ -1,3 +1,4 @@
+import { libraryFolders } from "@/lib/db/schema/folders";
 import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -36,6 +37,7 @@ type PreparedFile = UploadedFileMetadata & {
 export type CreateModelInput = {
   organizationId: string;
   ownerId: string;
+  folderId?: string | null;
   name: string;
   description?: string | null;
   tags?: string[];
@@ -141,12 +143,29 @@ export class ModelCreationService {
 
     try {
       const result = await db.transaction(async (tx) => {
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${organizationId}))`);
+        if (input.folderId) {
+          const [folder] = await tx
+            .select({ id: libraryFolders.id })
+            .from(libraryFolders)
+            .where(
+              and(
+                eq(libraryFolders.id, input.folderId),
+                eq(libraryFolders.organizationId, organizationId),
+                sql`${libraryFolders.deletedAt} IS NULL`,
+              ),
+            )
+            .limit(1);
+          if (!folder) throw new Error("Теку видалено або переміщено. Оновіть бібліотеку.");
+        }
+
         const [model] = await tx
           .insert(models)
           .values({
             id: modelId,
             organizationId,
             ownerId,
+            folderId: input.folderId ?? null,
             slug,
             name: input.name,
             description: input.description ?? null,

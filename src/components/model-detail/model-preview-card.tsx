@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { STLViewerWithSuspense } from "@/components/viewer/stl-viewer";
 import { formatBytes } from "@/lib/files/limits";
 import { setGeneratedThumbnail } from "@/server/functions/files";
-import { getModelVersions, getModelFiles } from "@/server/functions/models";
+import { getModelVersions, getModelFiles, getModel } from "@/server/functions/models";
 
 type ModelPreviewCardProps = {
   modelId: string;
@@ -28,6 +28,10 @@ const isTooLargeForInBrowserPreview = (fileSize: number) =>
 
 export const ModelPreviewCard = ({ modelId, versionId }: ModelPreviewCardProps) => {
   const queryClient = useQueryClient();
+  const { data: model } = useQuery({
+    queryKey: ["model", modelId],
+    queryFn: () => getModel({ data: { id: modelId } }),
+  });
   const snapshotVersionIdsRef = useRef<Set<string>>(new Set());
   const { data: versions } = useQuery({
     queryKey: ["model", modelId, "versions"],
@@ -43,7 +47,9 @@ export const ModelPreviewCard = ({ modelId, versionId }: ModelPreviewCardProps) 
 
   const previewFiles = useMemo(() => {
     if (!files) return [];
-    const viewable = files.filter((file) => ["stl", "obj"].includes(file.extension.toLowerCase()));
+    const viewable = files.filter(
+      (file) => ["stl", "obj"].includes(file.extension.toLowerCase()) || Boolean(file.previewUrl),
+    );
     if (viewable.length === 0) return [];
     const sourceViewable = viewable.filter((file) => file.storageKey?.includes("/sources/"));
     return sourceViewable.length > 0 ? sourceViewable : viewable;
@@ -69,17 +75,20 @@ export const ModelPreviewCard = ({ modelId, versionId }: ModelPreviewCardProps) 
   }, [activeFileId, previewFiles, previewFilesWithinSizeLimit]);
 
   const activeFile = previewFiles.find((file) => file.id === activeFileId) ?? previewFiles[0];
+  const isCadPreview = activeFile?.extension.toLowerCase() === "sldprt";
+  const activePreviewUrl = activeFile?.previewUrl ?? activeFile?.storageUrl;
   const activeFileTooLargeForBrowserPreview = activeFile
     ? isTooLargeForInBrowserPreview(activeFile.size)
     : false;
 
   // Check if there are any 3D files at all (including unsupported ones)
   const has3DFiles = files?.some((f) =>
-    ["stl", "obj", "3mf", "ply"].includes(f.extension.toLowerCase()),
+    ["stl", "obj", "3mf", "ply", "sldprt"].includes(f.extension.toLowerCase()),
   );
 
   // Capture a viewer snapshot as the library thumbnail, once per version, only when missing
   const shouldCaptureSnapshot =
+    Boolean(model?.permissions.canEdit) &&
     !!activeVersion &&
     activeVersion.thumbnailPath == null &&
     !snapshotVersionIdsRef.current.has(activeVersion.id);
@@ -148,7 +157,7 @@ export const ModelPreviewCard = ({ modelId, versionId }: ModelPreviewCardProps) 
         </CardDescription>
       </CardHeader>
       <CardContent className="p-0">
-        {activeFile?.storageUrl ? (
+        {activeFile && activePreviewUrl ? (
           <div className="rounded-b-lg bg-muted/20">
             {previewFiles.length > 1 ? (
               <div className="border-border/60 border-b px-4 py-3">
@@ -177,6 +186,11 @@ export const ModelPreviewCard = ({ modelId, versionId }: ModelPreviewCardProps) 
                 </div>
               </div>
             ) : null}
+            {isCadPreview && (
+              <p className="border-b px-4 py-2 text-xs text-muted-foreground">
+                CAD preview from saved display geometry. The original file is preserved.
+              </p>
+            )}
             <div className="aspect-video">
               {activeFileTooLargeForBrowserPreview ? (
                 <div className="flex h-full w-full items-center justify-center bg-muted">
@@ -194,12 +208,13 @@ export const ModelPreviewCard = ({ modelId, versionId }: ModelPreviewCardProps) 
               ) : (
                 <STLViewerWithSuspense
                   className="h-full w-full overflow-hidden rounded-b-lg"
-                  filename={activeFile.filename}
+                  filename={isCadPreview ? activeFile.filename + ".stl" : activeFile.filename}
+                  isCadPreview={isCadPreview}
                   key={activeFile.id}
                   modelId={modelId}
                   onSnapshot={shouldCaptureSnapshot ? handleSnapshot : undefined}
                   posterUrl={activeVersion.thumbnailUrl}
-                  url={activeFile.storageUrl}
+                  url={activePreviewUrl}
                   version={activeVersion.version}
                 />
               )}
@@ -212,7 +227,9 @@ export const ModelPreviewCard = ({ modelId, versionId }: ModelPreviewCardProps) 
               {has3DFiles ? (
                 <>
                   <div className="font-medium">Preview not available</div>
-                  <div className="mt-1 text-sm">STL viewer only supports .stl and .obj files</div>
+                  <div className="mt-1 text-sm">
+                    Your files are saved. Add an STL or OBJ to enable 3D preview.
+                  </div>
                   <div className="mt-2 text-xs">
                     Available files: {files?.map((f) => f.extension.toUpperCase()).join(", ")}
                   </div>

@@ -1,107 +1,40 @@
-import { Box, GitBranch, Plus, Search, Tags } from "lucide-react";
-import { FileStackEffect } from "@/components/empty-state/file-stack-effect";
+import { FolderOpen, Plus, Search } from "lucide-react";
+import { useLocation } from "@tanstack/react-router";
+import { useLibraryFolders } from "@/hooks/use-library-folders";
 import { uploadModalActions } from "@/stores/upload-modal.store";
 import { Button } from "@/components/ui/button";
 
-type EmptyStateProps = {
-  hasFilters: boolean;
-};
-
-export function EmptyState({ hasFilters }: EmptyStateProps) {
-  // Filtered results empty state - simple message
-  if (hasFilters) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16">
-        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-          <Search className="h-8 w-8 text-muted-foreground" />
-        </div>
-        <h3 className="mb-2 font-semibold text-lg">No models found</h3>
-        <p className="max-w-sm text-center text-muted-foreground text-sm">
-          Try adjusting your search terms or filters to find what you're looking for.
-        </p>
-      </div>
-    );
-  }
-
-  // First time / empty library - impressive empty state
+export function EmptyState({ hasFilters }: { hasFilters: boolean }) {
+  const folderId = useLocation({
+    select: (location) => (location.search as { folder?: string }).folder,
+  });
+  const { data } = useLibraryFolders();
+  const canUpload = folderId
+    ? (data?.folders.find((folder) => folder.id === folderId)?.accessLevel ?? 0) >= 2
+    : data?.canManageLibrary;
   return (
-    <div className="relative overflow-hidden rounded-xl border border-border/50 bg-gradient-to-b from-background to-muted/30 py-16">
-      {/* Technical grid overlay */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.02]"
-        style={{
-          backgroundImage: `
-            linear-gradient(hsl(var(--foreground)) 1px, transparent 1px),
-            linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)
-          `,
-          backgroundSize: "24px 24px",
-        }}
-      />
-
-      {/* Content */}
-      <div className="relative z-10 flex flex-col items-center px-4">
-        {/* File stack visual effect */}
-        <div className="mb-8">
-          <FileStackEffect />
-        </div>
-
-        {/* Heading */}
-        <h2 className="mb-3 font-bold text-2xl tracking-tight">Your Library is Empty</h2>
-        <p className="mb-8 max-w-md text-center text-muted-foreground">
-          Upload your first 3D model to get started. STL Shelf supports{" "}
-          <span className="font-medium text-foreground">STL</span>,{" "}
-          <span className="font-medium text-foreground">OBJ</span>,{" "}
-          <span className="font-medium text-foreground">3MF</span>, and{" "}
-          <span className="font-medium text-foreground">PLY</span> files.
-        </p>
-
-        {/* CTA Button */}
-        <Button
-          className="mb-12 gap-2 bg-primary text-primary-foreground shadow-lg hover:bg-primary/90"
-          onClick={() => uploadModalActions.openModal()}
-          size="lg"
-        >
-          <Plus className="h-5 w-5" />
-          Upload Your First Model
+    <div className="flex flex-col items-center rounded-lg border border-dashed py-12 text-center">
+      {hasFilters ? (
+        <Search className="mb-3 h-10 w-10 text-muted-foreground" />
+      ) : (
+        <FolderOpen className="mb-3 h-10 w-10 text-muted-foreground" />
+      )}
+      <h3 className="font-semibold">
+        {hasFilters ? "Нічого не знайдено" : "Тут поки немає файлів і моделей"}
+      </h3>
+      <p className="mt-2 max-w-md text-sm text-muted-foreground">
+        {hasFilters
+          ? "Змініть пошук або фільтри в поточній теці."
+          : canUpload
+            ? "Завантажте файли кнопкою вище або додайте модель з кількома файлами та версіями."
+            : "Нові файли з’являться тут, коли їх додадуть учасники проєкту."}
+      </p>
+      {!hasFilters && canUpload && (
+        <Button className="mt-5" variant="outline" onClick={() => uploadModalActions.openModal()}>
+          <Plus className="mr-2 h-4 w-4" />
+          Додати модель
         </Button>
-
-        {/* Feature cards */}
-        <div className="grid w-full max-w-2xl grid-cols-1 gap-4 sm:grid-cols-3">
-          <FeatureCard
-            description="Track iterations"
-            icon={<GitBranch className="h-5 w-5" />}
-            title="Version Control"
-          />
-          <FeatureCard
-            description="Easy discovery"
-            icon={<Tags className="h-5 w-5" />}
-            title="Tags & Organize"
-          />
-          <FeatureCard
-            description="Interactive view"
-            icon={<Box className="h-5 w-5" />}
-            title="3D Preview"
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-type FeatureCardProps = {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-};
-
-function FeatureCard({ icon, title, description }: FeatureCardProps) {
-  return (
-    <div className="flex flex-col items-center rounded-lg border border-border/50 bg-card/50 p-4 text-center backdrop-blur-sm">
-      <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg border border-primary/20 bg-background text-primary">
-        {icon}
-      </div>
-      <h3 className="font-medium text-sm">{title}</h3>
-      <p className="text-muted-foreground text-xs">{description}</p>
+      )}
     </div>
   );
 }

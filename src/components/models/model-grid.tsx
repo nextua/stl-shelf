@@ -15,7 +15,7 @@ export function ModelGrid() {
   const tagsString = search.tags;
 
   const { models, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isFetching, error } =
-    useInfiniteModels({ search: searchQuery, tagsString });
+    useInfiniteModels({ search: searchQuery, tagsString, folderId: search.folder ?? null });
 
   const { ref: loadMoreRef, inView } = useInView({
     threshold: 0,

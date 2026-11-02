@@ -3,6 +3,7 @@ import { listModels, type ModelListCursor } from "@/server/functions/models";
 import { MODELS_QUERY_KEY } from "./use-delete-model";
 
 type UseInfiniteModelsParams = {
+  folderId?: string | null;
   search?: string;
   tagsString?: string;
   limit?: number;
@@ -15,14 +16,19 @@ const parseTags = (tagsString?: string): string[] | undefined => {
   return tags.length > 0 ? tags : undefined;
 };
 
-export const useInfiniteModels = ({ search, tagsString, limit = 12 }: UseInfiniteModelsParams) => {
+export const useInfiniteModels = ({
+  search,
+  tagsString,
+  limit = 12,
+  folderId = null,
+}: UseInfiniteModelsParams) => {
   const tags = parseTags(tagsString);
 
   // No `enabled` check needed - the route is already protected by beforeLoad auth.
   // SSR loader prefetches data, client hydrates from cache.
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isFetching, error } =
     useInfiniteQuery({
-      queryKey: [...MODELS_QUERY_KEY, "infinite", { search, tags, limit }],
+      queryKey: [...MODELS_QUERY_KEY, "infinite", { search, tags, limit, folderId }],
       queryFn: ({ pageParam }) =>
         listModels({
           data: {
@@ -30,6 +36,7 @@ export const useInfiniteModels = ({ search, tagsString, limit = 12 }: UseInfinit
             limit,
             search: search || undefined,
             tags,
+            folderId,
           },
         }),
       initialPageParam: undefined as ModelListCursor | undefined,

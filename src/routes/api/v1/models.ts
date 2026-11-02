@@ -1,6 +1,7 @@
+import { modelVisibilityPredicate } from "@/server/services/folder-access.service";
 import { createFileRoute } from "@tanstack/react-router";
 import { db, models } from "@/lib/db";
-import { eq, and, isNull, desc } from "drizzle-orm";
+import { desc } from "drizzle-orm";
 import { validateApiKey } from "@/server/middleware/api-key";
 
 export const Route = createFileRoute("/api/v1/models")({
@@ -29,9 +30,7 @@ export const Route = createFileRoute("/api/v1/models")({
               updatedAt: models.updatedAt,
             })
             .from(models)
-            .where(
-              and(eq(models.organizationId, validation.organizationId), isNull(models.deletedAt)),
-            )
+            .where(await modelVisibilityPredicate(validation.actor))
             .orderBy(desc(models.updatedAt))
             .limit(limit)
             .offset(offset);

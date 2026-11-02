@@ -16,7 +16,11 @@ vi.mock("@/lib/db", async () => {
   const modelsSchema = await import("@/lib/db/schema/models");
   const meteringSchema = await import("@/lib/db/schema/metering");
   const authSchema = await import("@/lib/db/schema/auth");
+  const foldersSchema = await import("@/lib/db/schema/folders");
   return {
+    ...modelsSchema,
+    ...authSchema,
+    ...foldersSchema,
     db: drizzle(new PGlite(), {
       schema: { ...modelsSchema, ...meteringSchema, ...authSchema },
     }),
@@ -113,7 +117,9 @@ const request = (headers: Record<string, string> = {}) =>
 
 const withSession = (organizationId: string | null) => {
   getLiveSessionMock.mockResolvedValue(
-    organizationId ? { session: { activeOrganizationId: organizationId } } : null,
+    organizationId
+      ? { user: { id: USER_1 }, session: { activeOrganizationId: organizationId } }
+      : null,
   );
 };
 
@@ -122,6 +128,18 @@ async function rollupRows() {
 }
 
 async function createSchema(): Promise<void> {
+  await db.execute(sql`drop table if exists "member"`);
+  await db.execute(sql`drop table if exists "organization"`);
+  await db.execute(
+    sql`create table "organization" ("id" text primary key, "account_deletion_completed_at" timestamptz)`,
+  );
+  await db.execute(
+    sql`create table "member" ("id" text primary key, "organization_id" text, "user_id" text, "role" text)`,
+  );
+  await db.execute(sql`insert into "organization" ("id") values (${ORG_A}), (${ORG_B})`);
+  await db.execute(
+    sql`insert into "member" values ('member-a', ${ORG_A}, ${USER_1}, 'owner'), ('member-b', ${ORG_B}, ${USER_1}, 'owner')`,
+  );
   await db.execute(sql`
     create table if not exists "user" ("id" text primary key, "name" text, "image" text)
   `);
@@ -129,6 +147,7 @@ async function createSchema(): Promise<void> {
     create table if not exists "models" (
       "id" uuid primary key,
       "organization_id" text not null,
+      "folder_id" uuid,
       "owner_id" text not null,
       "slug" text not null,
       "name" text not null,
@@ -317,7 +336,10 @@ describe("authorized delivery", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("Cache-Control")).toBe("private, max-age=86400");
+    expect(response.headers.get("Cache-Control")).toBe(
+      "private, no-cache, max-age=0, must-revalidate",
+    );
+    expect(response.headers.get("Vary")).toBe("Cookie");
     expect(response.headers.get("ETag")).toBe(`"etag-${THUMB_KEY}"`);
     const body = new Uint8Array(await response.arrayBuffer());
     expect(body).toEqual(THUMB_BYTES);

@@ -23,29 +23,52 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDeleteModel } from "@/hooks/use-delete-model";
-import { addVersion, getModel, getModelVersions } from "@/server/functions/models";
+import {
+  addVersion,
+  getModel,
+  getModelVersions,
+  getModelFiles,
+  getModelTags,
+} from "@/server/functions/models";
 
 export const Route = createFileRoute("/models/$modelId")({
   head: () => ({
     meta: [{ name: "robots", content: "noindex, nofollow" }],
   }),
-  // Fire-and-forget: warms the detail queries during hover/touch preloads
-  // without blocking the navigation; the components read them via useQuery.
-  loader: ({ context, params }) => {
-    void context.queryClient.prefetchQuery({
-      queryKey: ["model", params.modelId],
-      queryFn: () => getModel({ data: { id: params.modelId } }),
-    });
-    void context.queryClient.prefetchQuery({
-      queryKey: ["model", params.modelId, "versions"],
-      queryFn: () => getModelVersions({ data: { modelId: params.modelId } }),
-    });
+  // Resolve permission-dependent content before SSR so hydration sees the same view.
+  loader: async ({ context, params }) => {
+    try {
+      await context.queryClient.ensureQueryData({
+        queryKey: ["model", params.modelId],
+        queryFn: () => getModel({ data: { id: params.modelId } }),
+      });
+      const versions = await context.queryClient.ensureQueryData({
+        queryKey: ["model", params.modelId, "versions"],
+        queryFn: () => getModelVersions({ data: { modelId: params.modelId } }),
+      });
+      const versionId = versions[0]?.id;
+      await Promise.all([
+        context.queryClient.prefetchQuery({
+          queryKey: ["model", params.modelId, "tags"],
+          queryFn: () => getModelTags({ data: { id: params.modelId } }),
+        }),
+        versionId &&
+          context.queryClient.prefetchQuery({
+            queryKey: ["model", params.modelId, "files", versionId],
+            queryFn: () => getModelFiles({ data: { modelId: params.modelId, versionId } }),
+          }),
+      ]);
+      return { accessDenied: false };
+    } catch {
+      return { accessDenied: true };
+    }
   },
   component: ModelDetailComponent,
 });
 
 function ModelDetailComponent() {
   const { modelId } = Route.useParams();
+  const { accessDenied } = Route.useLoaderData();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [versionUploadModalOpen, setVersionUploadModalOpen] = useState(false);
   const [selectedVersionId, setSelectedVersionId] = useState<string>();
@@ -64,7 +87,7 @@ function ModelDetailComponent() {
 
   const queryClient = useQueryClient();
   const deleteModel = useDeleteModel();
-  const { data: model } = useQuery({
+  const { data: model, error: modelError } = useQuery({
     queryKey: ["model", modelId],
     queryFn: () => getModel({ data: { id: modelId } }),
   });
@@ -127,6 +150,13 @@ function ModelDetailComponent() {
     addVersionMutation.mutate(data);
   };
 
+  if (accessDenied || modelError)
+    return (
+      <div className="container mx-auto p-8 text-muted-foreground">
+        Модель не знайдено або доступ відкликано.
+      </div>
+    );
+
   return (
     <div className="bg-background">
       <div className="container mx-auto max-w-6xl px-4 py-8">
@@ -177,7 +207,10 @@ function ModelDetailComponent() {
               </CardHeader>
               <CardContent>
                 {activeVersion ? (
-                  <PrintProfilesSection versionId={activeVersion} />
+                  <PrintProfilesSection
+                    versionId={activeVersion}
+                    canEdit={model?.permissions.canEdit ?? false}
+                  />
                 ) : (
                   <div className="rounded-lg border border-dashed border-border/60 bg-muted/20 p-6 text-center text-sm text-muted-foreground">
                     Upload a version to add print profiles.

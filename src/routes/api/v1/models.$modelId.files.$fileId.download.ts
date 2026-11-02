@@ -1,3 +1,4 @@
+import { authorizeActorResource } from "@/server/services/folder-access.service";
 import { createFileRoute } from "@tanstack/react-router";
 import { db, models, modelVersions, modelFiles } from "@/lib/db";
 import { eq, and, isNull } from "drizzle-orm";
@@ -43,6 +44,8 @@ export const Route = createFileRoute("/api/v1/models/$modelId/files/$fileId/down
 
         try {
           const { modelId, fileId } = params;
+          const folderDenial = await authorizeActorResource(validation.actor, "model", modelId);
+          if (folderDenial) return folderDenial;
 
           // Verify model belongs to organization
           const [model] = await db

@@ -1,3 +1,4 @@
+import { useLocation } from "@tanstack/react-router";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -38,6 +39,9 @@ const UPLOAD_STEPS = [
 ];
 
 export function UploadModal() {
+  const currentFolderId = useLocation({
+    select: (location) => (location.search as { folder?: string }).folder,
+  });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const modalState = useStore(uploadModalStore, (state) => state);
@@ -89,6 +93,7 @@ export function UploadModal() {
     }) => {
       const formData = new FormData();
       formData.append("name", data.name);
+      if (currentFolderId) formData.append("folderId", currentFolderId);
       formData.append("description", data.description);
       formData.append("tags", JSON.stringify(data.tags));
       for (const file of data.files) {

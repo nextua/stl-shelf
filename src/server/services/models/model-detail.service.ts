@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema/auth";
 import { modelFiles, models, modelTags, modelVersions, tags } from "@/lib/db/schema/models";
 import { versionThumbnailUrl } from "@/lib/thumbnails";
+import { env } from "@/lib/env";
 
 export type ModelFile = {
   id: string;
@@ -13,6 +14,7 @@ export type ModelFile = {
   extension: string;
   storageKey: string;
   storageUrl: string | null;
+  previewUrl?: string;
   storageBucket: string;
   createdAt: string;
 };
@@ -24,6 +26,7 @@ export type ModelOwner = {
 };
 
 export type ModelMetadata = {
+  folderId: string | null;
   id: string;
   name: string;
   description: string | null;
@@ -88,6 +91,10 @@ class ModelDetailService {
           extension: file.extension,
           storageKey: file.storageKey,
           storageUrl: fileUrl,
+          previewUrl:
+            file.extension.toLowerCase() === "sldprt" && env.CAD_PREVIEW_URL
+              ? "/api/cad-preview/" + file.id
+              : undefined,
           storageBucket: file.storageBucket,
           createdAt: file.createdAt,
         };
@@ -102,6 +109,7 @@ class ModelDetailService {
         name: models.name,
         description: models.description,
         slug: models.slug,
+        folderId: models.folderId,
         currentVersion: models.currentVersion,
         totalVersions: models.totalVersions,
         createdAt: models.createdAt,
@@ -135,6 +143,7 @@ class ModelDetailService {
       name: model.name,
       description: model.description,
       slug: model.slug,
+      folderId: model.folderId,
       currentVersion: model.currentVersion,
       totalVersions: model.totalVersions,
       tags: model.tags ?? [],

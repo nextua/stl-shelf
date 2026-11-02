@@ -6,6 +6,7 @@ describe("getUploadFileCategory", () => {
     expect(getUploadFileCategory("benchy.stl")).toBe("model");
     expect(getUploadFileCategory("part.OBJ")).toBe("model");
     expect(getUploadFileCategory("scan.ply")).toBe("model");
+    expect(getUploadFileCategory("part.SLDPRT")).toBe("model");
   });
 
   it("categorizes 3mf as slicer project", () => {
@@ -28,7 +29,7 @@ describe("getUploadFileCategory", () => {
 describe("UPLOAD_ACCEPTED_EXTENSIONS", () => {
   it("contains exactly the extensions of the upload categories, with dot", () => {
     expect([...UPLOAD_ACCEPTED_EXTENSIONS].sort()).toEqual(
-      [".stl", ".obj", ".ply", ".3mf", ".jpg", ".jpeg", ".png", ".webp"].sort(),
+      [".stl", ".obj", ".ply", ".sldprt", ".3mf", ".jpg", ".jpeg", ".png", ".webp"].sort(),
     );
   });
 });
